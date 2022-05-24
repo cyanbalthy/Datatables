@@ -1,10 +1,13 @@
 <?php
   header('Content-Type: application/json');
   header('Access-Control-Allow-Origin: *');
+  header('Access-Control-Allow-Methods: *');
   require("utility/database.php");
 
-  $page=0;
-  $size=10;
+  $page=@$_POST["start"] ?? 0;
+  $size=@$_POST["length"] ?? 10;
+  $id = @$_POST["id"] ?? 0;
+  $searchVal = $_POST["search"]["value"];
   $totalElements=0;
   $query="SELECT count(id) as conteggio FROM employees";
   if($result=$mysqli->query($query)){
@@ -12,10 +15,41 @@
       $totalElements = $row["conteggio"];
     }
   }
+  $results = contaRisultati($searchVal);
+  $draw = $_SESSION["counter"] + 1;
+  $urlDiBase = "http://localhost:8080/index.php";
+  $query="select count(id) as tot from employees";
+
   //-------------------------------------------------------------------------------------
   if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // The request is using the POST method
-    $data = json_decode(file_get_contents('php://input'), true);
+
+    if($searchVal!=""){
+      /*$arrayJSON['data'] = GET_SEARCHFILTER($searchVal,$page*$size, $size );
+      $arrayJSON['recordsFiltered'] = $totalElements;
+      $arrayJSON['recordsTotal'] = $totalElements;*/
+      $tmp=GET_SEARCHFILTER($searchVal,$page*$size, $size );
+      $array = array(
+        "data" => $tmp,
+        "recordsFiltered" => $totalElements,
+        "recordsTotal" => $totalElements
+      );
+      echo json_encode($arrayJSON);
+    }else{
+      /*$arrayJSON['data'] = GET($page*$size, $size);
+      $arrayJSON['recordsFiltered'] = $totalElements;
+      $arrayJSON['recordsTotal'] = $totalElements;*/
+      $tmp=GET($searchVal,$page*$size, $size );
+      $array = array(
+        "data" => $tmp,
+        "recordsFiltered" => $totalElements,
+        "recordsTotal" => $totalElements
+      );
+      echo json_encode($arrayJSON);
+    }
+    echo $searchVal;
+
+    /*$data = json_decode(file_get_contents('php://input'), true);
 
     $query="INSERT INTO employees (id, birth_date, first_name, last_name, gender, hire_date)
     VALUES ('0',
@@ -26,10 +60,10 @@
       ".$mysqli->real_escape_string($data['hire_date']).")";
 
     $mysqli->query($query)
-    or die ("<br>Query fallita " . $mysqli->error . " ". $mysqli->error );
+    or die ("<br>Query fallita " . $mysqli->error . " ". $mysqli->error );*/
 
     //-------------------------------------------------------------------------------------
-  }else if ($_SERVER['REQUEST_METHOD'] === 'GET'){
+  }/*else if ($_SERVER['REQUEST_METHOD'] === 'GET'){
     // aggiungere il content-type
     try{
 
@@ -59,9 +93,7 @@
         $i=$i+1;
       }
     }
-    /*$employee = array(
-          "employees" => $emparray
-    );*/
+    //$employee = array("employees" => $emparray);
 
     $prev=$page-1;
     $next=$page+1;
@@ -146,5 +178,42 @@
   or die ("<br>Chiusura connessione fallita " . $mysqli->error . " ". $mysqli->errno);
 
   //docker run --name some-mysql -v /home/informatica/mysqldata:/var/lib/mysql -v /home/lai2/dump:/dump -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:latest
-  //docker exec -it "nome"
+  //docker exec -it "nome"*/
+function GET_SEARCHFILTER($searchValue, $page, $lenght){
+  require("utility/database.php");
+  $query = "SELECT * FROM employees
+  WHERE id like '%$searchValue%'
+  OR first_name like '%$searchValue%'
+  OR birth_date like '%$searchValue%'
+  OR last_name like '%$searchValue%'
+  OR hire_date like '%$searchValue%'
+  OR gender like '%$searchValue%'
+  ORDER BY id LIMIT $page, $lenght";
+
+  $rows = array();
+
+  if($result = $mysqli-> query($query)){
+    while($row = $result-> fetch_assoc()){
+      $rows[] = $row;
+    }
+  }
+
+  $mysqli->close();
+  return $rows;
+}
+
+function GET($page, $lenght){
+  require("utility/database.php");
+  $query = "SELECT * FROM employees ORDER BY id LIMIT $page, $lenght";
+  $rows = array();
+
+  if($result = $mysqli-> query($query)){
+    while($row = $result-> fetch_assoc()){
+      $rows[] = $row;
+    }
+  }
+
+  $mysqli->close();
+  return $rows;
+}
 ?>
