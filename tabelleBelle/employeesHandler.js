@@ -7,12 +7,12 @@ $(document).ready(function () {
             type: 'POST'
         },
         colums: [
-            {data: 'id'},
-            {data: 'first_name'},
-            {data: 'last_name'},
-            {data: 'gender'},
-            {data: 'birth_date'},
-            {data: 'hire_date'}
-        ]
+            { data: 'id' },
+            { data: 'birth_date' },
+            { data: 'first_name' },
+            { data: 'last_name' },
+            { data: 'gender' },
+            { data: 'hire_date' },
+        ],
     });
 });

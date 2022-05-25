@@ -7,7 +7,7 @@
   $page=@$_POST["start"] ?? 0;
   $size=@$_POST["length"] ?? 10;
   $id = @$_POST["id"] ?? 0;
-  $searchVal = $_POST["search"]["value"];
+  $searchVal = $mysqli->real_escape_string($_POST["search"]["value"]);
   $totalElements=0;
   $query="SELECT count(id) as conteggio FROM employees";
   if($result=$mysqli->query($query)){
@@ -19,25 +19,30 @@
   $draw = $_SESSION["counter"] + 1;
   $urlDiBase = "http://localhost:8080/index.php";
   $query="select count(id) as tot from employees";
+  $numCampo=$_POST["order"][0]["column"];
+  $campo=$_POST["columns"][$numCampo]["data"];
+  $direzione=$_POST["order"][0]["dir"];
 
   //-------------------------------------------------------------------------------------
-  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'GET') {
     // The request is using the POST method
 
-    if($searchVal!=""){
+    if($searchVal!="" && $searchVal!=null){
       /*$arrayJSON['data'] = GET_SEARCHFILTER($searchVal,$page*$size, $size );
       $arrayJSON['recordsFiltered'] = $totalElements;
       $arrayJSON['recordsTotal'] = $totalElements;*/
-      $tmp=GET_SEARCHFILTER($searchVal,$page*$size, $size );
+      $tmp=GET_SEARCHFILTER($searchVal, $campo, $direzione, $page*$size, $size );
       $array = array(
         "data" => $tmp,
         "recordsFiltered" => $totalElements,
         "recordsTotal" => $totalElements
       );
-      echo json_encode($arrayJSON);
+      echo json_encode($array);
     }else{
-      /*$arrayJSON['data'] = GET($page*$size, $size);
-      $arrayJSON['recordsFiltered'] = $totalElements;
+      /*$arrayJSON['data'] = GET($"data": [],
+    "recordsFiltered": "300024",
+    "recordsTotal": "300024"
+}= $totalElements;
       $arrayJSON['recordsTotal'] = $totalElements;*/
       $tmp=GET($searchVal,$page*$size, $size );
       $array = array(
@@ -45,7 +50,8 @@
         "recordsFiltered" => $totalElements,
         "recordsTotal" => $totalElements
       );
-      echo json_encode($arrayJSON);
+      $returnedJson=json_encode($array, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+      echo $returnedJson;
     }
     echo $searchVal;
 
@@ -63,7 +69,8 @@
     or die ("<br>Query fallita " . $mysqli->error . " ". $mysqli->error );*/
 
     //-------------------------------------------------------------------------------------
-  }/*else if ($_SERVER['REQUEST_METHOD'] === 'GET'){
+  }
+  /*else if ($_SERVER['REQUEST_METHOD'] === 'GET'){
     // aggiungere il content-type
     try{
 
@@ -179,17 +186,41 @@
 
   //docker run --name some-mysql -v /home/informatica/mysqldata:/var/lib/mysql -v /home/lai2/dump:/dump -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:latest
   //docker exec -it "nome"*/
-function GET_SEARCHFILTER($searchValue, $page, $lenght){
+
+function contaRisultati($filter){
   require("utility/database.php");
-  $query = "SELECT * FROM employees
+  $query = "SELECT count(*) FROM employees 
+            WHERE id like '$filter' 
+            OR birth_date like '$filter' 
+            OR first_name like '$filter' 
+            OR last_name like '$filter' 
+            OR gender like '$filter' 
+            OR hire_date like '$filter'";
+  
+  $result = $mysqli-> query($query);
+  $row = $result-> fetch_row();
+
+  return $row[0];
+}
+
+function GET_SEARCHFILTER($searchValue, $campo, $direzione, $page, $lenght){
+  require("utility/database.php");
+  /*$query = $mysqli->prepare("SELECT * FROM employees
   WHERE id like '%$searchValue%'
   OR first_name like '%$searchValue%'
   OR birth_date like '%$searchValue%'
   OR last_name like '%$searchValue%'
   OR hire_date like '%$searchValue%'
   OR gender like '%$searchValue%'
-  ORDER BY id LIMIT $page, $lenght";
-
+  ORDER BY $campo $direzione LIMIT $page, $lenght");*/
+  $query = $mysqli->prepare("SELECT * FROM employees
+  WHERE id like ?
+  OR first_name like ?
+  OR last_name like ?
+  ORDER BY ? ? LIMIT ?, ?");
+  $query->bind_param('issssii',$searchValue, "%$searchValue%", "%$searchValue%",$campo,$direzione, $page, $lenght);
+  $query->execute();
+  
   $rows = array();
 
   if($result = $mysqli-> query($query)){
@@ -204,16 +235,19 @@ function GET_SEARCHFILTER($searchValue, $page, $lenght){
 
 function GET($page, $lenght){
   require("utility/database.php");
-  $query = "SELECT * FROM employees ORDER BY id LIMIT $page, $lenght";
-  $rows = array();
+  $query = $mysqli->prepare("SELECT * FROM employees ORDER BY id LIMIT ?, ?");
+  
+  $query->bind_param('ii', $page, $lenght);
+  $query->execute();
 
-  if($result = $mysqli-> query($query)){
+  $rows = array();
+  if($result = $query->get_result()){
     while($row = $result-> fetch_assoc()){
-      $rows[] = $row;
+      $rows = $row;
     }
   }
 
-  $mysqli->close();
+  //$mysqli->close();
   return $rows;
 }
 ?>
